@@ -47,5 +47,27 @@ void chat(int connfd)
 int main()
 {
     SAI client, server;
-    
+    int sockfd, connfd, len;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    printf("Socket created successfully\n");
+
+    server.sin_family = AF_INET;
+    server.sin_addr.s_addr = htonl(INADDR_ANY);
+    server.sin_port = htons(PORT);
+
+    if ((bind(sockfd, (SA *)&server, sizeof(server))) == 0)
+        printf("Socket binded successful\n");
+
+    if ((listen(sockfd, 5)) == 0)
+        printf("Server is listening...\n");
+
+    connfd = accept(sockfd, (SA *)&client, (socklen_t *)&len);
+    printf("Server accepted the client");
+
+    chat(connfd);
+
+    close(connfd);
+    close(sockfd);
+    return 0;
 }
