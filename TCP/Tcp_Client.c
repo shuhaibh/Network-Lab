@@ -51,7 +51,7 @@ int main()
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     printf("Socket created successfully\n");
 
-    bzero(server, sizeof(server));
+    bzero(&server, sizeof(server));
 
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = htonl(INADDR_ANY);

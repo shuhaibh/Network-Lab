@@ -16,7 +16,7 @@ void chat(int sockfd, SAI client)
     char buff[MAX];
     int n,len=sizeof(client);
 
-    while (condition)
+    while (1)
     {
         bzero(buff, sizeof(buff));
 

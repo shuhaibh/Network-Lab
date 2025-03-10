@@ -37,7 +37,7 @@ void main()
         {
             for (k = 0; k < n; k++)
             {
-                if (dist[i][k] != 999 && dist[k][j] != 999 &&dist[i][j] > dist[i][k] + dist[k][j])
+                if (dist[i][k] != 999 && dist[k][j] != 999 && dist[i][j] > dist[i][k] + dist[k][j])
                 {
                     dist[i][j] = dist[i][k] + dist[k][j];
                 }

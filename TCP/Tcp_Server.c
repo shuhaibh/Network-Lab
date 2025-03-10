@@ -50,10 +50,10 @@ int main()
     SAI client, server;
     int sockfd, connfd, len;
 
-    sockfd = sockect(ARPA_INET, SOCK_STREAM, 0);
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
     printf("Socket created successfully\n");
 
-    server.sin_family = ARPA_INET;
+    server.sin_family = AF_INET;
     server.sin_addr.s_addr = htonl(INADDR_ANY);
     server.sin_port = htons(PORT);
 
