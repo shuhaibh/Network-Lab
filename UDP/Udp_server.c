@@ -37,7 +37,7 @@ void chat(int sockfd, SAI client)
         sendto(sockfd, buff, sizeof(buff), 0, (SA*)&client, len);
 
         if (strncmp(buff, "exit", 4) == 0)
-        {
+        {   
             printf("Server Exit...\n");
             break;
         }     
