@@ -1,52 +1,80 @@
-#include<stdio.h>
-#include<sys/types.h>
-#include<sys/socket.h>
-#include<arpa/inet.h>
-#include<fcntl.h>
-#include<pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
-#include<stdlib.h> 
+#include <arpa/inet.h>
+#include <sys/time.h>
 
-int sockfd, m, n, s = -1, g = 0;
-void * senddata() {
-  char ch = 'd';
-  while (1) {
-    s++;
-    write(sockfd, & ch, 1);
-    write(sockfd, & s, 1);
-    printf("Send data %d\n", s);
-    sleep(1);
-  }
-}
+#define PORT 3913
+#define BUFFER_SIZE 1024
+#define TIMEOUT 3  // Timeout in seconds
+#define WINDOW_SIZE 4  // Sliding window size
+#define TOTAL_PACKETS 6  // Number of packets to send
 
-void * receivedata() {
-  char ca;
-  while (1) {
-    n = read(sockfd, & ca, 1);
-    m = read(sockfd, & g, 1);
-    if (ca == 'a') {
-      printf("Ack %d Received\n", g);
-      sleep(1);
-    } else if (ca == 'c') {
-      printf("Sending again\n");
-      s = g - 1;
+int main() {
+    int sock = 0;
+    struct sockaddr_in serv_addr;
+    char buffer[BUFFER_SIZE] = {0};
+    struct timeval tv;
+
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        perror("Socket creation failed");
+        exit(EXIT_FAILURE);
     }
-  }
-}
 
-main() {
-  pthread_t s, r;
-  struct sockaddr_in cliaddr;
-  cliaddr.sin_family = PF_INET;
-  cliaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-  cliaddr.sin_port = htons(8084);
-  sockfd = socket(PF_INET, SOCK_STREAM, 0);
-  connect(sockfd, (struct sockaddr * ) & cliaddr, sizeof(cliaddr));
-  printf("Connecting to server	\n");
-  pthread_create( & s, 0, senddata, 0);
-  sleep(1);
-  pthread_create( & r, 0, receivedata, 0);
-  sleep(1);
-  while (1);
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(PORT);
 
+    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
+        perror("Invalid address/ Address not supported");
+        exit(EXIT_FAILURE);
+    }
+
+    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        perror("Connection failed");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Client: Connected to server.\n");
+
+    tv.tv_sec = TIMEOUT;
+    tv.tv_usec = 0;
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
+
+    int base = 1;
+    int next_to_send = 1;
+    int ack, packets_acked = 0;
+
+    while (packets_acked < TOTAL_PACKETS) {
+        // Send all packets in the window
+        while (next_to_send < base + WINDOW_SIZE && next_to_send <= TOTAL_PACKETS) {
+            memset(buffer,0,BUFFER_SIZE);
+            printf("Client: Sending packet %d\n", next_to_send);
+            sprintf(buffer, "%d", next_to_send);
+            send(sock, buffer, strlen(buffer)+1, 0);
+            next_to_send++;
+      }
+
+        // Wait for ACK
+        memset(buffer, 0, BUFFER_SIZE);
+        int valread = read(sock, buffer, BUFFER_SIZE);
+
+        if (valread > 0) {
+            ack = atoi(buffer);
+            printf("Client: ACK received for packet %d\n", ack);
+
+            // Slide the window if ACK corresponds to the base
+            if (ack == base) {
+                base = ack + 1;
+                packets_acked = ack;
+            }
+        } else {
+            printf("Client: Timeout! Retransmitting from packet %d...\n", base);
+            next_to_send = base;  // Reset next_to_send to base for retransmission
+        }
+    }
+
+    printf("Client: All packets sent successfully.\n");
+    close(sock);
+    return 0;
 }

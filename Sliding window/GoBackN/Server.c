@@ -1,52 +1,75 @@
-#include<stdio.h>
-#include<sys/types.h>
-#include<sys/socket.h>
-#include<arpa/inet.h>
-#include<fcntl.h>
-#include<pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
-#include<stdlib.h> 
+#include <arpa/inet.h>
+#include <time.h>
 
-main() {
-  int sockfd, newsockfd, clilen, g = 0, n, m, p = 0, f = -1, k;
-  char ca = 'a', can = 'c', ch;
-  struct sockaddr_in serv_addr, cli_addr;
-  serv_addr.sin_family = PF_INET;
-  serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-  serv_addr.sin_port = htons(8084);
-  sockfd = socket(PF_INET, SOCK_STREAM, 0);
-  bind(sockfd, (struct sockaddr * ) & serv_addr, sizeof(serv_addr));
-  listen(sockfd, 5);
-  printf("Server is waiting	\n");
-  clilen = sizeof(cli_addr);
-  newsockfd = accept(sockfd, (struct sockaddr * ) & cli_addr, & clilen);
-  while (1) {
-    n = read(newsockfd, & ch, 1);
-    m = read(newsockfd, & g, 1);
-    if (ch = 'd') {
-      k = rand();
-      if (k % 3 == 0) {
-        if (g == f + 1) {
-          printf("Data %d Corrupted\n", g);
-          write(newsockfd, & can, 1);
-          write(newsockfd, & g, 1);
-          sleep(2);
-        } else {
-          printf("Discarded data %d\n", g);
-        }
-      } else {
-        p = f + 1;
-        if (g == p) {
-          printf("Data %d received\n", g);
-          write(newsockfd, & ca, 1);
-          write(newsockfd, & g, 1);
-          printf("Data %d acknowledged\n", g);
-          f = g;
-        } else
-          printf("Discarded data %d\n", g);
+#define PORT 3913
+#define BUFFER_SIZE 1024
+#define LOSS_PROBABILITY 30  // 30% chance of ACK loss
 
-        sleep(2);
-      }
+int main() {
+    int server_fd, new_socket;
+    struct sockaddr_in address;
+    int addrlen = sizeof(address);
+    char buffer[BUFFER_SIZE] = {0};
+    int ack;
+
+    srand(time(0));  // Random seed for ACK simulation
+
+    // Create socket
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("Socket creation failed");
+        exit(EXIT_FAILURE);
     }
-  }
+
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(PORT);
+
+    // Bind socket
+    if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
+        perror("Bind failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Listen for client
+    if (listen(server_fd, 3) < 0) {
+        perror("Listen failed");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Server: Waiting for connection...\n");
+
+    if ((new_socket = accept(server_fd, (struct sockaddr*)&address, (socklen_t*)&addrlen)) < 0) {
+        perror("Accept failed");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Server: Connection established.\n");
+
+    while (1) {
+        memset(buffer, 0, BUFFER_SIZE);
+        int valread = read(new_socket, buffer, BUFFER_SIZE);
+        if (valread == 0) break;
+
+        ack = atoi(buffer);
+        printf("Server: Received packet %d\n", ack);
+
+        // Simulate ACK loss
+        if (rand() % 100 < LOSS_PROBABILITY) {
+            printf("Server: ACK for packet %d lost!\n\n", ack);
+        } else {
+            sleep(1);  // Simulate processing delay
+            printf("Server: ACK sent for packet %d\n\n", ack);
+            memset(buffer,0,BUFFER_SIZE);
+            sprintf(buffer, "%d", ack);  // Send ACK
+            send(new_socket, buffer, strlen(buffer)+1, 0);
+        }
+    }
+
+    close(new_socket);
+    close(server_fd);
+    return 0;
 }

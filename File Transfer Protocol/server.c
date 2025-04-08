@@ -31,7 +31,7 @@ int main()
         newsockfd = accept(sockfd,(SA*)&client,&len);
 
         read(newsockfd,&file_size,sizeof(file_size));
-        file_size = htonl(file_size);
+        file_size = ntohl(file_size);
 
         total_bytes = 0;
         while(total_bytes<file_size)
@@ -40,7 +40,7 @@ int main()
                 total_bytes += bytes_read;
         }
 
-        for(int i=0;i<total_bytes;i++)
+        for(int i=0;i<total_bytes/2;i++)
         {
                 char temp = buff[i];
                 buff[i] = buff[total_bytes - i - 1];

@@ -1,45 +1,74 @@
-#include<stdio.h>
-#include<sys/types.h>
-#include<netinet/in.h>
-#include<fcntl.h>
-#include<pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
-#include<stdlib.h> 
-#include<arpa/inet.h>
+#include <arpa/inet.h>
+#include <time.h>
+
+#define PORT 3913
+#define BUFFER_SIZE 1024
 
 int main() {
-  int g = 0, p, f = -1;
-  char ch, ca = 'a', can = 'c';
-  struct sockaddr_in server, client;
-  int len = sizeof(client);
-  server.sin_family = AF_INET;
-  server.sin_port = 8888;
-  server.sin_addr.s_addr = INADDR_ANY;
+    int server_fd, new_socket;
+    struct sockaddr_in address;
+    int addrlen = sizeof(address);
+    char buffer[BUFFER_SIZE] = {0};
+    int ack_prob = 70;
 
-  int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-  bind(sockfd, (struct sockaddr * ) & server, sizeof(server));
-  listen(sockfd, 5);
-  printf("Server is waiting...... \n");
-  int newfd = accept(sockfd, (struct sockaddr * ) & client, & len);
+    srand(time(0));
 
-  while (1) {
-    read(newfd, & ch, 1);
-    read(newfd, & g, 1);
-    if (ch == 'd') {
-      int k = rand();
-      if (k % 3 == 0) {
-        printf("Data %d corrupted\n", g);
-        write(newfd, & can, 1);
-        write(newfd, & g, 1);
-        sleep(2);
-      } else {
-        printf("Data received : %d\n", g);
-        write(newfd, & ca, 1);
-        write(newfd, & g, 1);
-        printf("Data acknowledged : %d\n", g);
-        f = g;
-        sleep(2);
-      }
+    // Create socket
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("Socket creation failed");
+        exit(EXIT_FAILURE);
     }
-  }
+
+    // Define server address
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(PORT);
+
+    // Bind socket to port
+    if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
+        perror("Bind failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Listen for incoming connections
+    if (listen(server_fd, 3) < 0) {
+        perror("Listen failed");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Server: Waiting for connection...\n");
+
+    // Accept connection from client
+    if ((new_socket = accept(server_fd, (struct sockaddr*)&address, (socklen_t*)&addrlen)) < 0) {
+        perror("Accept failed");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Server: Connection established.\n");
+
+    while (1) {
+        // Receive packet from client
+        int valread = read(new_socket, buffer, BUFFER_SIZE);
+        if (valread == 0) break;
+
+        printf("Server: Received packet - %s\n", buffer);
+
+        // Simulate ACK or loss
+        if (rand() % 100 < ack_prob) {
+            printf("Server: ACK sent for packet %s\n\n", buffer);
+            send(new_socket, "ACK", strlen("ACK"), 0);
+        } else {
+            printf("Server: ACK lost for packet %s\n\n", buffer);
+        }
+
+        memset(buffer, 0, BUFFER_SIZE);  // Clear buffer
+    }
+
+    close(new_socket);
+    close(server_fd);
+    return 0;
 }

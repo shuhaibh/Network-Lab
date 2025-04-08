@@ -1,60 +1,57 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <unistd.h>
+#include<stdio.h>
+#include<unistd.h>
+#include<stdlib.h>
+#include<string.h>
+#include<sys/socket.h>
+#include<arpa/inet.h>
 
-#define SERV_TCP_PORT 5035
-#define MAX_BUFFER_SIZE 4096
+#define MAX 4096
+#define PORT 3913
+#define SA struct sockaddr
+#define SAI struct sockaddr_in
 
-int main() {
-    int sockfd, file_size;
-    struct sockaddr_in serv_addr;
-    char file_buffer[MAX_BUFFER_SIZE];
-    FILE *fp;
-    char file_name[100];
+int main()
+{
+        int sockfd,file_size;
+        SAI server;
+        char filebuff[MAX];
+        FILE *fp;
+        char filename[100];
 
-    // Prompt user for file name and read it
-    printf("Enter the source file name: ");
-    scanf("%s", file_name);
+        printf("Enter the file name:");
+        scanf("%s",filename);
 
-    // Open file and read its contents into file_buffer
-    fp = fopen(file_name, "r");
-    file_size = fread(file_buffer, 1, MAX_BUFFER_SIZE, fp);
-    fclose(fp);
+        fp=fopen(filename,"r");
+        file_size = fread(filebuff,1,MAX,fp);
+        fclose(fp);
 
-    // Create a socket and connect to the server
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    serv_addr.sin_port = htons(SERV_TCP_PORT);
-    connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
+        sockfd = socket(AF_INET,SOCK_STREAM,0);
+        server.sin_family = AF_INET;
+        server.sin_addr.s_addr = htonl(INADDR_ANY);
+        server.sin_port = htons(PORT);
 
-    // Send the file size (converted to network byte order)
-    int net_size = htonl(file_size);
-    write(sockfd, &net_size, sizeof(net_size));
+        connect(sockfd,(SA*)&server,sizeof(server));
 
-    // Send the file content
-    write(sockfd, file_buffer, file_size);
+        int net_size = htonl(file_size);
+        write(sockfd,&net_size,sizeof(net_size));
 
-    // Receive the reversed file content size first
-    int recv_size;
-    read(sockfd, &recv_size, sizeof(recv_size));
-    recv_size = ntohl(recv_size);
+        write(sockfd, filebuff, file_size);
 
-    // Then receive the reversed file content
-    int total_received = 0, bytes;
-    while(total_received < recv_size) {
-        bytes = read(sockfd, file_buffer + total_received, recv_size - total_received);
-        total_received += bytes;
-    }
+        int recv_size;
+        read(sockfd,&recv_size,sizeof(recv_size));
+        recv_size=ntohl(recv_size);
 
-    // Print the reversed file content
-    printf("Reversed file content:\n");
-    fwrite(file_buffer, 1, recv_size, stdout);
-    printf("\n");
+        int total_recieved = 0;
+        while(total_recieved < recv_size)
+        {
+                int bytes = read(sockfd,filebuff + total_recieved ,recv_size-total_recieved);
+                total_recieved += bytes;
+        }
 
-    close(sockfd);
-    return 0;
+        printf("Reversed file content:\n");
+        fwrite(filebuff,1,recv_size,stdout);
+        printf("\n");
+
+        close(sockfd);
+        return 0;
 }
