@@ -1,55 +1,57 @@
-#include<stdio.h>
-#include<sys/types.h>
-#include<netinet/in.h>
-#include<pthread.h>
-#include<fcntl.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #include <unistd.h>
-#include<stdlib.h> 
 
-#define WSIZE 2
-int sockfd, up = -1, low = 0, g;
-void * senddata() {
-  char ch = 'd';
-  while (1) {
-    up++;
-    while ((up - low) > WSIZE) {
-      printf("congestion.... \n");
-      sleep(1);
+#define PORT 6543
+#define LOST "127.0.0.1"
+
+void selective(int csd) {
+    char data[128][128], buff[128];
+    int curr, size = 4, i;
+    for(curr = 0; curr < size; curr++) {
+        printf("SEND << ");
+        scanf("%s", data[curr]);
+        send(csd, data[curr], 128, 0);
     }
-    printf("Data sent : %d\n", up);
-    write(sockfd, & ch, 1);
-    write(sockfd, & up, 1);
-    sleep(1);
-  }
-}
-void * recvdata() {
-  char c;
-  char ch = 'd';
-  while (1) {
-    read(sockfd, & c, 1);
-    read(sockfd, & g, 1);
-    if (c == 'a') {
-      printf("Data acknowledged : %d\n", g);
-      low++;
-    } else if (c == 'c') {
-      printf("Data %d corrupted, sending again\n", g);
-      write(sockfd, & ch, 1);
-      write(sockfd, & g, 1);
+
+    while(1) {
+        recv(csd, buff, 128, 0);
+        printf("RECV >> %s\n", buff);
+        if(buff[1] == 'N') {
+            send(csd, data[curr - size], 128, 0);
+            printf("RESE: %s\n", data[curr - size]);
+            continue;
+        }
+        printf("SEND << ");
+        scanf("%s", data[curr]);
+        send(csd, data[curr], 128, 0);
+        curr++;
     }
-    sleep(1);
-  }
 }
+
 int main() {
-  pthread_t s, r;
-  sockfd = socket(AF_INET, SOCK_STREAM, 0);
-  struct sockaddr_in server;
-  server.sin_family = AF_INET;
-  server.sin_port = 8888;
-  server.sin_addr.s_addr = INADDR_ANY;
-  connect(sockfd, (struct sockaddr * ) & server, sizeof(server));
-  pthread_create( & s, 0, senddata, 0);
-  sleep(1);
-  pthread_create( & r, 0, recvdata, 0);
-  sleep(1);
-  while (1);
+    int sd;
+    if((sd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        printf("Socket creation error.\n");
+        return 1;
+    }
+
+    struct sockaddr_in server;
+    memset(&server, 0, sizeof(server));
+    server.sin_family = AF_INET;
+    server.sin_port = htons(PORT);
+    server.sin_addr.s_addr = inet_addr(LOST);
+
+    if(connect(sd, (struct sockaddr *)&server, sizeof(server)) < 0) {
+        printf("Connection Error\n");
+        return 1;
+    }
+
+    selective(sd);
+
+    close(sd);
+    return 0;
 }

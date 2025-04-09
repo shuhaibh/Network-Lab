@@ -28,17 +28,12 @@ int main() {
         int incoming = packets[i];
 
         // Ignore packets larger than bucket capacity
-        if (incoming > bucket_capacity) {
-            printf("%8d\tRejected (Too large)\n", incoming);
+        if(incoming>bucket_capacity || bucket+incoming>bucket_capacity)
+        {
+            printf("%8d\t%6s\t%6s\t%8s\n", incoming, "-", "-", "Rejected");
             continue;
         }
-
-        // Fill bucket (only what fits)
-        if (bucket + incoming > bucket_capacity) {
-            incoming = bucket_capacity - bucket;
-        }
-        bucket += incoming;
-
+        
         // Leak from bucket
         int leaked = (bucket >= leak_rate) ? leak_rate : bucket;
         int remaining = bucket - leaked;
