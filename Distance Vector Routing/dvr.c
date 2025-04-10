@@ -72,5 +72,6 @@ void main()
             printf("%d\t|", dist[i][j]);
         }
         printf("\n");
+        
     }
 }
